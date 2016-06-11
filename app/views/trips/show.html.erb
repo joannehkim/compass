@@ -1,0 +1,271 @@
+
+<style>
+    #fixed_map{
+       height: 400px;
+       width: 70%;
+/*       display: inline-block;*/
+       vertical-align: top;
+       position: relative;  
+     }
+     #map{
+       height: 400px;
+       width: 600px;
+       border: 1px solid black;
+       display: inline-block;
+       vertical-align: top;
+       margin-left: -300px;
+       background-color: #CCC;
+       position: absolute;
+     }
+    nav{
+        margin-top: -600px;
+        position: fixed;
+        background-color: #5F9EA0;
+        z-index: 99;
+        position:absolute;
+      }
+    .destination {
+      text-transform: uppercase;
+    }
+ </style>
+
+</head>
+<body>
+
+
+  <nav>
+    <div class="nav-wrapper ">
+      <a href="/" class="brand-logo">Compass</a>
+      <ul id="nav-mobile" class="right hide-on-med-and-down">
+        <li><a href="/users/<%=current_user.id%>">My Compass</a></li>
+        <li><a href="/sessions/<%=params[:id]%>" data-method='delete'>Logout</a></li>
+      </ul>
+    </div>
+  </nav>
+
+<section class="module content">
+
+<div class="row">
+      <div class="col s6">
+          <% if @trip.picture_file_name %>
+             <h3 class="destination"><%= @trip.destination %></h3>
+             <div class = 'place_image'><%= image_tag @trip.picture.url  %></div>
+           <% end %>
+      </div>
+      <div class="col s6">
+        <h3 class="destination">LOCATION</h3>
+        <div id="fixed_map">
+               <div id="map">
+                 <% count = 0 %>
+                 <script>
+                   var places = []
+                 </script>
+                 <% @places.each do |p| %>
+                 <script> places.push("<%= p.location %>")</script>
+                 <% end %>
+                 <script>
+                   function initMap() {
+                     console.log(places)
+
+                     var geocoder = new google.maps.Geocoder();
+                     var address = document.getElementById('destination').innerHTML
+                     var trip_location = geocoder.geocode({'address': address}, function(results, status){
+                       if (status == google.maps.GeocoderStatus.OK) {
+                         map.setCenter(results[0].geometry.location);
+                         var marker = new google.maps.Marker({
+                             map: map,
+                             position: results[0].geometry.location
+                         });
+                       } else {
+                         alert("Geocode was not successful for the following reason: " + status);
+                       }
+                    });
+                     var labels = "123456789";
+                     var labelind = 0;
+                     for (var i = 0; i<places.length; i++){
+                       var place_location = geocoder.geocode({'address': places[i]}, function(results, status){
+                         if (status == google.maps.GeocoderStatus.OK) {
+                           var marker = new google.maps.Marker({
+                               map: map,
+                               position: results[0].geometry.location,
+                               label: labels[labelind++]
+                           });
+                         } else {
+                           alert("Geocode was not successful for the following reason: " + status);
+                         }
+                     })};
+                     console.log(address)
+                     var mapDiv = document.getElementById('map');
+                     var map = new google.maps.Map(mapDiv, {
+                       zoom: 10
+                     });
+                   }
+                 </script>
+                 <script async defer
+                   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhfWWMebSl09VdkaFt8D7yGnb5xUXi3A4&callback=initMap">
+                 </script>
+                 
+               </div>
+             </div>
+      </div>
+    </div>
+
+  <div class="container">
+      <table>
+        <thead>
+          <tr>
+              <th data-field="id">Name</th>
+              <td><%= @trip.user.first_name %> <%= @trip.user.last_name %></td>
+          </tr>
+          <tr>
+              <th data-field="id">Destination</th>
+              <td id = 'destination'><%= @trip.destination %></td>
+          </tr>
+          <tr>
+              <th data-field="id">Description</th>
+              <td><%= @trip.description %></td>
+          </tr>
+          <tr>
+              <th data-field="id">Trip Date</th>
+              <td><%= @trip.start_date.strftime("%B %d, %Y") %> ~ <%= @trip.end_date.strftime("%B %d, %Y") %></td>
+          </tr>
+
+        </thead>
+
+          <% if Like.find_by(user_id: current_user.id, likeable_id: @trip.id, likeable_type: "Trip") %>
+        <form action='/likes' method='POST'>
+          <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+          <input name = "_method" value = 'delete' type = 'hidden'>
+          <input name="likeable_id" value="<%= @trip.id %>" type="hidden">
+          <input name="likeable_type" value= "Trip" type="hidden">
+          <input type="submit" value="Unlike">
+        </form>
+      <% else %>
+        <form action='/likes' method='POST'>
+          <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+          <input name="likeable_id" value="<%= @trip.id %>" type="hidden">
+          <input name="likeable_type" value="Trip" type="hidden">
+          <input type="submit" value="Like">
+        </form>
+      <% end %>
+  <b>There are <%= Like.where(likeable_type: "Trip", likeable_id: @trip.id).count %> users who like this trip.</b>
+      </table>
+
+        <div class="container">
+  <% if current_user.id == @trip.user_id %>
+  <form class="new_picture" id="new_picture" enctype="multipart/form-data" action="/trips/<%= @trip.id %>" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="✓">
+    <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+    <input type = 'hidden' name = '_method' value = 'patch'>
+    <div class="file-field input-field">
+      <div class="btn">
+        <span>File</span>
+      <input type="file" name="trip[picture]" id="picture_picture">
+      </div>
+      <div class="file-path-wrapper">
+        <input class="file-path validate" type="text">
+      </div>
+    </div>
+    <center><button class="btn" type="submit">Add Trip Picture</button></center><br>
+  </form>
+  </div>
+  <form action="/trips/<%= @trip.id %>" method="POST">
+            <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+            <input name = "_method" value = "delete" type = 'hidden' class='place_form'>
+            <div class="container">
+            <button type="submit" class="btn">Delete this Trip</button><a href = "/trips/<%= @trip.id %>/edit"><button type="button" class="btn" href = "/trips/<%= @trip.id %>/edit">Edit this Trip</button></a><br><br>
+  </form>
+  <hr>
+  <% end %>
+
+    <h4>Comments about this trip:</h4>
+    <% @comments.each do |c| %>
+      <%= c.content %><br>
+      - <span class="bold"><%= c.user.first_name %></span><br><br>
+    <% end %>
+    <form action='/comments' method='POST'>
+      <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+      <input name = "comment[content]" type = 'text' id= 'comment' value='Write a Comment...'><br>
+      <input name="comment[commentable_id]" value="<%= @trip.id %>" type="hidden">
+      <input name="comment[commentable_type]" value="Trip" type="hidden">
+
+      <button type="submit" class="btn">Add a New Comment</button><br><br>
+    </form>
+    <hr>
+
+
+    <% if current_user.id == @trip.user_id %>
+      <h3>Add a Place in <%= @trip.destination %>:</h3>
+        <div class="container">
+
+          <form action="/places" method="POST">
+            <input name="authenticity_token" value="<%= form_authenticity_token %>" type="hidden">
+            <input name = "place[trip_id]" value = "<%= @trip.id %>" type = 'hidden' class='place_form'>
+            <div class="container">
+            
+              <div class="input-field col s9">
+                <i class="material-icons prefix">language</i>
+                <input id="icon_prefix" type="text" class="validate" name="place[location]">
+                <label for="icon_prefix">Location</label>
+              </div><br>
+              <div class="input-field col s9">
+                <i class="material-icons prefix">mode_edit</i>
+                <input id="icon_telephone" type="tel" class="validate" name="place[description]">
+                <label for="icon_telephone">Description</label>
+              </div>
+              <div class="input-field col s9">
+                <i class="material-icons prefix">toc</i>
+                <input id="date" type="date" class="datepicker" name="place[datetime]">
+                <label for="date">Date</label>
+              </div>
+            </div>
+            </div>
+            <button type="submit" class="btn">Add Place</button><br><br>
+          </form><hr>
+        
+          </div>
+        </div>
+    <% end %>
+
+    <div class = "container">
+
+  <% count = 0 %>
+  <% @places.each do |p| %>
+  <% count += 1 %>
+  <a href="/places/<%= p.id %>"><h3>Place #<%= count %></h3></a>
+  <table>
+    <% if @picture = Picture.find_by(place_id: p.id) %>
+    <div class = 'place_image'><%= image_tag @picture.picture.url %></div> 
+    <% end %>
+    <tr>
+      <td>Location:</td>
+      <td id = "location_<%= count %>"><%= p.location %></td>
+    </tr>
+    <tr>
+      <td>Description:</td>
+      <td><%= p.description %></td>
+    </tr>
+    <tr>
+      <td>Date:</td>
+      <td><%= p.datetime.strftime("%B %d, %Y") %> </td>
+    </tr>
+  </table>
+  <% end %>
+  </div>
+</section>
+
+
+<section class="module parallax parallax-3">
+  <div class="container"><br>
+    <h1><%= @trip.destination %></h1>
+  </div>
+</section>
+
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('.datepicker').pickadate({
+    selectMonths: true, // Creates a dropdown to control month
+    selectYears: 15 // Creates a dropdown of 15 years to control year
+  });
+  });
+  </script>
